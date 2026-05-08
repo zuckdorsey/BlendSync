@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TokenProvider {
+  SPOTIFY
+  APPLE
+}
+
+enum TokenStatus {
+  CONNECTED
+  NEEDS_REAUTH
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+model Settings {
+  id                    String   @id
+  timezone              String   @default("Asia/Jakarta")
+  syncTime              String   @default("07:00")
+  applePlaylistPrefix   String   @default("Spotify Blend")
+  appleStorefront       String   @default("id")
+  spotifyBlendPlaylistId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AuthToken {
+  provider     TokenProvider @id
+  accessToken  String?
+  refreshToken String?
+  userToken    String?
+  expiresAt    DateTime?
+  status       TokenStatus   @default(CONNECTED)
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model TrackMatchCache {
+  spotifyTrackId String   @id
+  isrc           String?
+  appleSongId    String
+  confidence     Float
+  matchMethod    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isrc])
+}
+
+model SyncRun {
+  id                  String        @id @default(cuid())
+  status              SyncStatus    @default(RUNNING)
+  startedAt           DateTime      @default(now())
+  finishedAt          DateTime?
+  sourceSnapshotId    String?
+  sourceTrackCount    Int           @default(0)
+  matchedCount        Int           @default(0)
+  skippedCount        Int           @default(0)
+  applePlaylistId     String?
+  applePlaylistName   String?
+  errorSummary        String?
+  items               SyncRunItem[]
+}
+
+model SyncRunItem {
+  id             String  @id @default(cuid())
+  syncRunId      String
+  position       Int
+  spotifyTrackId String?
+  spotifyName    String
+  spotifyArtists String
+  spotifyAlbum   String?
+  isrc           String?
+  appleSongId    String?
+  matchMethod    String?
+  confidence     Float?
+  skipReason     String?
+  syncRun        SyncRun @relation(fields: [syncRunId], references: [id], onDelete: Cascade)
+
+  @@index([syncRunId])
+}
